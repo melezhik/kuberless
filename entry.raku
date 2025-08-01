@@ -9,10 +9,12 @@ BEGIN {
 
 directory 'state';
 
+my $state-repo = "https://github.com/melezhik/kuberless-state.git";
+
 while True {
 
   # checkout git repository with state
-  git-scm 'https://git.local/application/app.git', %( :to<state> );
+  git-scm $state-repo, %( :to<state> );
 
   # load state from checked git repo 
   my $state = from-json("state/state.json".IO.slurp);
@@ -24,7 +26,7 @@ while True {
   copy "state/state.json", "state.json";
         
   # get configuration variables from git state
-  my $vars = $state<vars>;
+  my $vars = $state<vars> || %();
 
   # deploy configuration file and check if it has changed
   my $res = task-run "deploy app config", "template6", %(
