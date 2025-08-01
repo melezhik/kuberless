@@ -1,29 +1,30 @@
 use Sparrow6::DSL;
 use JSON::Fast;
-
+use Sparrow6::Task::Repository;
 
 BEGIN {
   say "container just started";
   say "some init logic here";
+  Sparrow6::Task::Repository::Api.new().index-update;
 }
 
-directory 'state';
+directory '/app/git-state';
 
 my $state-repo = "https://github.com/melezhik/kuberless-state.git";
 
 while True {
 
   # checkout git repository with state
-  git-scm $state-repo, %( :to<state> );
+  git-scm $state-repo, %( :to</app/git-state>, :branch<main> );
 
   # load state from checked git repo 
-  my $state = from-json("state/state.json".IO.slurp);
+  my $state = from-json("/app/git-state/state/state.json".IO.slurp);
 
   # load current state or initialize with empty HashMap
   my $current-state = "state.json".IO ~~ :e ?? from-json("state.json".IO.slurp) !! %();
 
   # override current state by new one
-  copy "state/state.json", "state.json";
+  copy "/app/git-state/state/state.json", "state.json";
         
   # get configuration variables from git state
   my $vars = $state<vars> || %();
@@ -31,8 +32,8 @@ while True {
   # deploy configuration file and check if it has changed
   my $res = task-run "deploy app config", "template6", %(
    :$vars, 
-   :target<app.config>,
-   :template_dir<templates>,
+   :target</app/conf/app.config>,
+   :template_dir</app/templates>,
    :template<app>,
   );
 
