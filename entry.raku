@@ -29,6 +29,11 @@ while True {
   # get configuration variables from git state
   my $vars = $state<vars> || %();
 
+  if ! "/app/bin/app".IO  ~~ :e {
+    task-run "utils/curl", "curl", %(
+      args => [ %( :output</app/bin/app> ), [ 'silent', 'location' ], $state<distro-url> ]
+    );
+  }
   # deploy configuration file and check if it has changed
   my $res = task-run "deploy app config", "template6", %(
    :$vars, 
@@ -41,8 +46,10 @@ while True {
   # file has changed
 
   if $res<status> != 0 {
-     task-run "service restart", "service-restart", %(
-        :pid<app.pid>
+     task-run "service restart", "app-man", %(
+        :action<restart>,
+        :pid</app/pid/app.pid>,
+        :bin</app/bin/app>,
      );
   }
 
@@ -56,24 +63,18 @@ while True {
     );
 
     task-run "utils/curl", "curl", %(
-      args => [
-        %( 
-          :output<bin/app>,
-        ),
-        [
-          'silent',
-          'location'
-       ],
-        $state<distro-url>
-      ]
-     );
-     task-run "app start", "app-start", %(
-        :pid<app.pid>,
-        :bin<bin/app>
-     );
+      args => [ %( :output</app/bin/app> ), [ 'silent', 'location' ], $state<distro-url> ]
+    );
+    task-run "app start", "app-man", %(
+        :action<restart>,
+        :pid</app/pid/app.pid>,
+        :bin</app/bin/app>,
+    );
   }
 
-  my $s = task-run "check app is alive", "http-status";
+  my $s = task-run "check app is alive", "http-status", %(
+    :url<127.0.0.1:8181>,
+  );
 
   # raise an exception if application is not healthy
   # so singnaling kubernetes it should start a new container
